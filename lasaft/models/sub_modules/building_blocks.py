@@ -2,7 +2,7 @@ import math
 
 import torch
 import torch.nn as nn
-from torch.nn.utils import weight_norm
+from torch.nn.utils.parametrizations import weight_norm
 
 from lasaft.utils.PoCM_utils import Pocm_Matmul
 
