@@ -1,15 +1,15 @@
-from pathlib import Path
-import pkg_resources
 import hydra
 import torch
 from omegaconf import OmegaConf
+from pathlib import Path
+from pkg_resources import resource_filename
+from safetensors.torch import load_file
 
 
 def get_v2_large_709():
-
-    conf_path = pkg_resources.resource_filename('lasaft', 'pretrained/v2_large/')
+    conf_path = resource_filename('lasaft', 'pretrained/v2_large/')
     conf_path = Path(conf_path)
-    ckpt_path = conf_path.joinpath('epoch=709.ckpt')
+    ckpt_path = conf_path.joinpath('lasaft_v2_large_709.safetensors')
 
     with open(conf_path.joinpath('config.yaml')) as f:
         train_config = OmegaConf.load(f)
@@ -18,8 +18,8 @@ def get_v2_large_709():
         model = hydra.utils.instantiate(model_config).to('cpu')
 
         try:
-            ckpt = torch.load(str(ckpt_path), map_location='cpu')
-            model.load_state_dict(ckpt['state_dict'])
+            loaded_state_dict = load_file(str(ckpt_path))
+            model.load_state_dict(loaded_state_dict)
 
             print('checkpoint is loaded '.format(ckpt_path))
         except FileNotFoundError:
@@ -29,9 +29,9 @@ def get_v2_large_709():
 
 
 def get_mdx_light_v2_699():
-    conf_path = pkg_resources.resource_filename('lasaft', 'conf/pretrained/v2_light/')
+    conf_path = resource_filename('lasaft', 'pretrained/v2_light/')
     conf_path = Path(conf_path)
-    ckpt_path = conf_path.joinpath('epoch=669.ckpt')
+    ckpt_path = conf_path.joinpath('lasaft_v2_light_669_for_mdx.safetensors')
 
     with open(conf_path.joinpath('config.yaml')) as f:
         train_config = OmegaConf.load(f)
@@ -40,10 +40,10 @@ def get_mdx_light_v2_699():
         model = hydra.utils.instantiate(model_config).to('cpu')
 
         try:
-            ckpt = torch.load(str(ckpt_path), map_location='cpu')
-            model.load_state_dict(ckpt['state_dict'])
+            loaded_state_dict = load_file(str(ckpt_path))
+            model.load_state_dict(loaded_state_dict)
 
-            print('checkpoint is loaded '.format(ckpt_path))
+            print('checkpoint is loaded.'.format(ckpt_path))
         except FileNotFoundError:
             print('FileNotFoundError.\n\t {} not exists\ntest mode'.format(ckpt_path))  # issue 10: fault tolerance
 
