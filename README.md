@@ -16,3 +16,6 @@ For more information, please refer to the following link:
 
 * Original repository: [LASAFT-Net-v2](https://github.com/ws-choi/LASAFT-Net-v2).
 * Paper: https://arxiv.org/abs/2010.11631
+
+# Usage
+ Just use [lasaft_v2.py](lasaft_v2.py) to create model.
