@@ -1,6 +1,7 @@
 import soundfile
 import torch
 from torch.utils.data import DataLoader
+from typing import Iterable
 
 from lasaft.data.musdb_wrapper import SingleTrackSet
 from lasaft.models.loss_functions import get_conditional_loss, MultiSourceSpectrogramLoss
@@ -124,7 +125,7 @@ class AbstractLaSAFTNet(AbstractSeparator):
 
         return restored
 
-    def separate_multisource(self, input_signal, input_conditions, num_targets) -> torch.Tensor:
+    def separate_multisource(self, input_signal, input_conditions, num_targets) -> Iterable[torch.Tensor]:
         phase = None
         if self.magnitude_based:
             mag, phase = self.stft.to_mag_phase(input_signal)
@@ -234,6 +235,7 @@ class AbstractLaSAFTNet(AbstractSeparator):
 
                 for res, separated in zip(results, separateds):
                     res = res * mask.to(self.device)
+                    # res = torch.view_as_real(res)
                     res = res[:, self.trim_length:-self.trim_length].detach().cpu().numpy()
                     separated.append(res)
 
@@ -242,13 +244,20 @@ class AbstractLaSAFTNet(AbstractSeparator):
         new_separateds = []
         if db.is_overlap:
             for separated in separateds:
-                output = np.zeros_like(input_signal)
+                output = np.zeros((input_signal.shape[0], input_signal.shape[1]*2))
                 hop_length = db.hop_length
                 for i, sep in enumerate(separated):
                     to = sep.shape[0]
+
+                    real_sep = sep.real
+                    imag_sep = sep.imag
+
+                    sep = np.column_stack((real_sep[:, 0], imag_sep[:, 0], real_sep[:, 1], imag_sep[:, 1]))
+
                     if i * hop_length + sep.shape[0] > output.shape[0]:
                         to = sep.shape[0] - (i * hop_length + sep.shape[0] - output.shape[0])
-                    output[i * hop_length:i * hop_length + to] += sep[:to]
+                    output[i * hop_length:i * hop_length + to] = output[i * hop_length:i * hop_length + to] + sep[:to]
+
                 new_separateds.append(output)
 
         else:

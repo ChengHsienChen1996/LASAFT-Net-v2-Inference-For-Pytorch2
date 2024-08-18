@@ -54,7 +54,9 @@ class STFT(pl.LightningModule):
         # else:
         #     window = self.window
 
-        return torch.stft(input_signal, self.n_fft, self.hop_length, window=self.window, return_complex=False)
+        spec_complex = torch.stft(input_signal, self.n_fft, self.hop_length, window=self.window, return_complex=True)
+
+        return spec_complex
 
     def to_mag(self, input_signal, power=1.0):
         """
@@ -95,9 +97,13 @@ class STFT(pl.LightningModule):
         else:
             window = self.window
 
-        spec_complex = torch.view_as_complex(spec_complex.contiguous())
+        positive_spec = torch.view_as_complex(spec_complex.contiguous())
+        negative_spec = torch.conj(torch.flip(positive_spec[:, 1:-1, :], [1]))
 
-        return torch.istft(spec_complex, self.n_fft, self.hop_length, window=window, return_complex=False)
+        spec_complex = torch.cat([positive_spec, negative_spec], dim=1)
+
+        return torch.istft(spec_complex, self.n_fft, self.hop_length,
+                           window=window, return_complex=True, onesided=False)
 
     def restore_mag_phase(self, mag, phase, power=1.):
         """
@@ -124,7 +130,7 @@ class multi_channeled_STFT(pl.LightningModule):
         output: *, N, T, 2, ch
         """
         num_channels = input_signal.shape[-1]
-        spec_complex_ch = [self.stft.to_spec_complex(input_signal[..., ch_idx])
+        spec_complex_ch = [torch.view_as_real(self.stft.to_spec_complex(input_signal[..., ch_idx]))
                            for ch_idx in range(num_channels)]
         return torch.stack(spec_complex_ch, dim=-1)
 
