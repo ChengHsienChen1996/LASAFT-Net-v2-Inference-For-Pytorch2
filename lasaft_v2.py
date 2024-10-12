@@ -22,17 +22,17 @@ class LasaftV2:
             train_config = OmegaConf.load(f)
             model_config = train_config['model']
 
-            model = hydra.utils.instantiate(model_config).to(self.device)
+            separated_model = hydra.utils.instantiate(model_config).to(self.device)
 
             try:
                 loaded_state_dict = load_file(str(ckpt_path))
-                model.load_state_dict(loaded_state_dict)
+                separated_model.load_state_dict(loaded_state_dict)
 
                 print('checkpoint is loaded '.format(ckpt_path))
             except FileNotFoundError:
                 print('FileNotFoundError.\n\t {} not exists\ntest mode'.format(ckpt_path))  # issue 10: fault tolerance
 
-        return model
+        return separated_model
 
     def load_light_model(self):
         conf_path = resource_filename('lasaft', 'pretrained/v2_light/')
@@ -43,17 +43,24 @@ class LasaftV2:
             train_config = OmegaConf.load(f)
             model_config = train_config['model']
 
-            model = hydra.utils.instantiate(model_config).to('cpu')
+            separated_model = hydra.utils.instantiate(model_config).to(self.device)
 
             try:
                 loaded_state_dict = load_file(str(ckpt_path))
-                model.load_state_dict(loaded_state_dict)
+                separated_model.load_state_dict(loaded_state_dict)
 
                 print('checkpoint is loaded.'.format(ckpt_path))
             except FileNotFoundError:
                 print('FileNotFoundError.\n\t {} not exists\ntest mode'.format(ckpt_path))  # issue 10: fault tolerance
 
-        return model
+        return separated_model
+
+    def separate_vocals(self, target_voice) -> torch.Tensor:
+        result = self._model.separate_tracks(target_voice, ['vocals', 'drums', 'bass', 'other'],
+                                             overlap_ratio=0.5,
+                                             batch_size=4)
+        torch.from_numpy(result["vocals"]).transpose(0, 1)
+        return torch.from_numpy(result["vocals"]).transpose(0, 1)
 
     @property
     def lasfat_model(self):
