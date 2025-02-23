@@ -1,5 +1,8 @@
 import soundfile
 import torch
+import tempfile
+
+from pathlib import Path
 from torch.utils.data import DataLoader
 from typing import Iterable
 
@@ -199,9 +202,11 @@ class AbstractLaSAFTNet(AbstractSeparator):
         else:
             separated = np.concatenate(separated, axis=0)
 
-        import soundfile
-        soundfile.write('temp.wav', separated, 44100)
-        return soundfile.read('temp.wav')[0]
+        with tempfile.TemporaryFile() as temp_file:
+            soundfile.write(temp_file, separated, 44100)
+            wav_data = soundfile.read(temp_file)
+
+        return wav_data[0]
 
     def separate_tracks(self, input_signal, targets, overlap_ratio=0.5, batch_size=1) -> dict:
 
@@ -264,9 +269,13 @@ class AbstractLaSAFTNet(AbstractSeparator):
             new_separateds = [np.concatenate(separated, axis=0) for separated in separateds]
 
         res_dict = {}
-        for target, separated in zip(targets, new_separateds):
-            soundfile.write('{}_temp.wav'.format(target), separated, 44100)
-            res_dict[target] = soundfile.read('{}_temp.wav'.format(target))[0]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir = Path(temp_dir)
+            for target, separated in zip(targets, new_separateds):
+                file_path = temp_dir / '{}_temp.wav'.format(target)
+                soundfile.write(file_path, separated, 44100)
+                res_dict[target] = soundfile.read(file_path)[0]
 
         return res_dict
 
