@@ -1,65 +1,28 @@
 import hydra
 import torch
 
-from omegaconf import OmegaConf
-from pathlib import Path
-from pkg_resources import resource_filename
-from safetensors.torch import load_file
+from lasaft.load_pretrained import get_v2_large_709, get_mdx_light_v2_699
 
 
 class LasaftV2:
     def __init__(self, use_gpu: bool = False, light_model:bool = False):
-        self.device = "cuda" if (use_gpu and torch.cuda.is_available()) else "cpu"
+        self._use_gpu = use_gpu
 
         self._model = self.load_light_model() if light_model else self.load_large_model()
 
     def load_large_model(self):
-        conf_path = resource_filename('lasaft', 'pretrained/v2_large/')
-        conf_path = Path(conf_path)
-        ckpt_path = conf_path.joinpath('lasaft_v2_large_709.safetensors')
-
-        with open(conf_path.joinpath('config.yaml')) as f:
-            train_config = OmegaConf.load(f)
-            model_config = train_config['model']
-
-            separated_model = hydra.utils.instantiate(model_config).to(self.device)
-
-            try:
-                loaded_state_dict = load_file(str(ckpt_path))
-                separated_model.load_state_dict(loaded_state_dict)
-
-                print('checkpoint is loaded '.format(ckpt_path))
-            except FileNotFoundError:
-                print('FileNotFoundError.\n\t {} not exists\ntest mode'.format(ckpt_path))  # issue 10: fault tolerance
-
-        return separated_model
+        _model = get_v2_large_709(self._use_gpu)
+        return _model
 
     def load_light_model(self):
-        conf_path = resource_filename('lasaft', 'pretrained/v2_light/')
-        conf_path = Path(conf_path)
-        ckpt_path = conf_path.joinpath('lasaft_v2_light_669_for_mdx.safetensors')
-
-        with open(conf_path.joinpath('config.yaml')) as f:
-            train_config = OmegaConf.load(f)
-            model_config = train_config['model']
-
-            separated_model = hydra.utils.instantiate(model_config).to(self.device)
-
-            try:
-                loaded_state_dict = load_file(str(ckpt_path))
-                separated_model.load_state_dict(loaded_state_dict)
-
-                print('checkpoint is loaded.'.format(ckpt_path))
-            except FileNotFoundError:
-                print('FileNotFoundError.\n\t {} not exists\ntest mode'.format(ckpt_path))  # issue 10: fault tolerance
-
-        return separated_model
+        _model = get_mdx_light_v2_699(self._use_gpu)
+        return _model
 
     def separate_vocals(self, target_voice) -> torch.Tensor:
         result = self._model.separate_tracks(target_voice, ['vocals', 'drums', 'bass', 'other'],
                                              overlap_ratio=0.5,
                                              batch_size=4)
-        torch.from_numpy(result["vocals"]).transpose(0, 1)
+
         return torch.from_numpy(result["vocals"]).transpose(0, 1)
 
     @property
